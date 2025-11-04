@@ -27,6 +27,11 @@ check_deps() {
         echo -e "$eror 'openssl' tidak ditemukan. Silakan install."
         exit 1
     fi
+    if ! command -v jq &>/dev/null; then
+        echo -e "$eror 'jq' tidak ditemukan. Ini diperlukan agar bot dapat berfungsi."
+        echo -e "$info Silakan install 'jq' (misalnya, ${C}sudo apt-get install jq${N})."
+        # Jangan keluar, karena menu utama masih bisa digunakan.
+    fi
 }
 
 # Membuat backup
