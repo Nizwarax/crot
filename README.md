@@ -1,21 +1,23 @@
 # Advanced Script Protector & Telegram Bot
 
-## Instalasi Cepat
+## Instalasi
 
-Salin dan tempel perintah berikut ke terminal Anda untuk mengunduh dan menyiapkan skrip.
+Cukup unduh dan jalankan skrip instalasi. Salin dan tempel perintah berikut ke terminal Anda:
 
-**PENTING**: Ganti `<URL_RAW_ANDA>` dengan URL ke file mentah di repositori Anda.
+**PENTING**: Ganti `<URL_RAW_ANDA>` dengan URL ke file mentah `install.sh` di repositori Anda.
 
 ```bash
-curl -L -o protector.sh <URL_RAW_ANDA>/protector.sh && \
-curl -L -o telegram_bot.sh <URL_RAW_ANDA>/telegram_bot.sh && \
-chmod +x protector.sh telegram_bot.sh
+curl -L -o install.sh <URL_RAW_ANDA>/install.sh && bash install.sh
 ```
 
-Setelah selesai, Anda dapat memulai konfigurasi dengan menjalankan:
+Skrip instalasi akan secara otomatis:
+1.  Mengunduh file yang diperlukan (`protector.sh` dan `telegram_bot.sh`) ke direktori `~/.encssl`.
+2.  Membuatnya dapat dieksekusi.
+3.  Membuat perintah global `encssl` sehingga Anda dapat menjalankannya dari mana saja.
 
+Setelah instalasi selesai, Anda dapat menjalankan alat ini kapan saja dengan mengetik:
 ```bash
-./protector.sh
+encssl
 ```
 
 ---
@@ -48,29 +50,21 @@ Berikut adalah cara menyiapkan dan menjalankan bot enkripsi Telegram dari awal h
     *   Cari **@userinfobot** di Telegram.
     *   Mulai percakapan dengannya dan bot akan memberi Anda **User ID** Anda. Salin ID ini.
 
-### Langkah 2: Konfigurasi Bot
+### Langkah 2: Konfigurasi & Jalankan Bot
 
-1.  Jalankan skrip utama:
+1.  Jalankan perintah `encssl` di terminal Anda:
     ```bash
-    ./protector.sh
+    encssl
     ```
-2.  Dari menu utama, pilih opsi **[4] Pengaturan Bot Telegram**.
-3.  Masukkan **Token Bot** dan **User ID** yang Anda dapatkan dari Langkah 1.
-4.  Pengaturan Anda akan disimpan di file `bot.conf`.
+2.  Dari menu utama, pilih opsi **[4] Konfigurasi & Jalankan Bot Telegram**.
+3.  **Jika ini adalah pertama kalinya**, Anda akan diminta untuk memasukkan **Token Bot** dan **User ID** Anda. Masukkan kredensial yang Anda dapatkan dari Langkah 1.
+4.  Setelah konfigurasi disimpan, bot akan **berjalan secara otomatis**. Biarkan terminal ini tetap berjalan agar bot tetap aktif.
 
-### Langkah 3: Jalankan Bot
+### Langkah 3: Gunakan Bot Anda
 
-1.  Jalankan kembali skrip utama jika Anda keluar:
-    ```bash
-    ./protector.sh
-    ```
-2.  Dari menu utama, pilih opsi **[5] Jalankan Bot Telegram**.
-3.  Bot sekarang aktif dan akan mendengarkan file yang Anda kirim. Biarkan terminal ini tetap berjalan.
-
-### Langkah 4: Gunakan Bot Anda
-
-1.  Buka percakapan dengan bot Anda di Telegram.
-2.  Kirim file skrip `.sh` apa pun yang ingin Anda enkripsi.
-3.  Bot akan secara otomatis mengenkripsi file tersebut dan mengirimkannya kembali kepada Anda dengan **nama file yang sama persis**.
+1.  Buka percakapan dengan bot Anda di Telegram (atau ketik `/start` jika sudah terbuka).
+2.  Bot akan menyapa Anda dengan tombol **"Enkripsi"** dan **"Dekripsi"**.
+3.  Tekan salah satu tombol, lalu kirim file yang ingin Anda proses.
+4.  Bot akan secara otomatis memproses file Anda dan mengirimkannya kembali.
 
 Untuk menghentikan bot, kembali ke terminal tempat bot berjalan dan tekan `CTRL + C`.
