@@ -4,10 +4,8 @@
 
 Cukup unduh dan jalankan skrip instalasi. Salin dan tempel perintah berikut ke terminal Anda:
 
-**PENTING**: Ganti `<URL_RAW_ANDA>` dengan URL ke file mentah `install.sh` di repositori Anda.
-
 ```bash
-curl -L -o install.sh <URL_RAW_ANDA>/install.sh && bash install.sh
+curl -L -o install.sh https://raw.githubusercontent.com/Nizwarax/crot/main/install.sh && bash install.sh
 ```
 
 Skrip instalasi akan secara otomatis:
@@ -68,3 +66,18 @@ Berikut adalah cara menyiapkan dan menjalankan bot enkripsi Telegram dari awal h
 4.  Bot akan secara otomatis memproses file Anda dan mengirimkannya kembali.
 
 Untuk menghentikan bot, kembali ke terminal tempat bot berjalan dan tekan `CTRL + C`.
+
+---
+
+## Pemecahan Masalah
+
+**Masalah**: Anda melihat `command not found` atau `syntax error` saat menjalankan bot atau menu `encssl`.
+
+**Penyebab**: Ini paling sering terjadi ketika file skrip tidak diunduh dengan benar selama instalasi. GitHub terkadang dapat membatasi permintaan, yang menyebabkan installer mengunduh halaman kesalahan HTML alih-alih file skrip Bash yang sebenarnya.
+
+**Solusi**:
+1.  **Jalankan Ulang Installer**: Cukup jalankan kembali perintah instalasi. Skrip ini dirancang agar aman untuk dijalankan kembali. Ini akan menimpa file yang rusak dan mencoba mengunduh ulang.
+    ```bash
+    curl -L -o install.sh https://raw.githubusercontent.com/Nizwarax/crot/main/install.sh && bash install.sh
+    ```
+2.  **Periksa Koneksi Anda**: Pastikan Anda memiliki koneksi internet yang stabil.
