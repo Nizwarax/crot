@@ -27,21 +27,37 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# --- LANGKAH 2: UNDUH SKRIP ---
+# --- LANGKAH 2: UNDUH & VERIFIKASI SKRIP ---
+
+# Fungsi untuk mengunduh file dan memverifikasi itu bukan halaman kesalahan HTML
+download_and_verify() {
+    local url="$1"
+    local dest="$2"
+    local filename=$(basename "$dest")
+
+    echo -e "$info Mengunduh ${W}$filename${N}..."
+    # Gunakan -f untuk gagal pada kesalahan server, -L untuk mengikuti pengalihan
+    curl -fL -s -o "$dest" "$url"
+
+    if [ $? -ne 0 ]; then
+        echo -e "$eror Gagal mengunduh ${W}$filename${N}."
+        echo -e "$eror Periksa koneksi internet Anda atau URL repositori: ${C}$url${N}"
+        exit 1
+    fi
+
+    # Verifikasi file bukan halaman HTML (kesalahan umum dengan URL GitHub mentah)
+    if grep -q "<!DOCTYPE html>" "$dest"; then
+        echo -e "$eror File yang diunduh ${W}$filename${N} tampaknya adalah halaman kesalahan HTML."
+        echo -e "$eror Ini mungkin karena URL repositori salah atau GitHub membatasi permintaan."
+        rm -f "$dest" # Hapus file yang rusak
+        exit 1
+    fi
+}
+
 echo -e "$info Mengunduh skrip yang diperlukan..."
-curl -L -s -o "$INSTALL_DIR/protector.sh" "$REPO_URL/protector.sh"
-if [ $? -ne 0 ]; then
-    echo -e "$eror Gagal mengunduh protector.sh. Periksa apakah file ada di repositori."
-    exit 1
-fi
-
-curl -L -s -o "$INSTALL_DIR/telegram_bot.sh" "$REPO_URL/telegram_bot.sh"
-if [ $? -ne 0 ]; then
-    echo -e "$eror Gagal mengunduh telegram_bot.sh. Periksa apakah file ada di repositori."
-    exit 1
-fi
-
-echo -e "$sukses Skrip berhasil diunduh."
+download_and_verify "$REPO_URL/protector.sh" "$INSTALL_DIR/protector.sh"
+download_and_verify "$REPO_URL/telegram_bot.sh" "$INSTALL_DIR/telegram_bot.sh"
+echo -e "$sukses Skrip berhasil diunduh dan diverifikasi."
 
 # --- LANGKAH 3: BUAT SKRIP DAPAT DIEKSEKUSI ---
 echo -e "$info Membuat skrip dapat dieksekusi..."
