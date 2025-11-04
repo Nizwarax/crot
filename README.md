@@ -7,7 +7,7 @@ Cukup unduh dan jalankan skrip instalasi. Salin dan tempel perintah berikut ke t
 **PENTING**: Ganti `<URL_RAW_ANDA>` dengan URL ke file mentah `install.sh` di repositori Anda.
 
 ```bash
-curl -L -o install.sh https://github.com/Nizwarax/crot.git/install.sh && bash install.sh
+curl -L -o install.sh https://raw.githubusercontent.com/Nizwarax/crot/main/install.sh && bash install.sh
 ```
 
 Skrip instalasi akan secara otomatis:
