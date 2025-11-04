@@ -1,5 +1,25 @@
 # Advanced Script Protector & Telegram Bot
 
+## Instalasi Cepat
+
+Salin dan tempel perintah berikut ke terminal Anda untuk mengunduh dan menyiapkan skrip.
+
+**PENTING**: Ganti `<URL_RAW_ANDA>` dengan URL ke file mentah di repositori Anda.
+
+```bash
+curl -L -o protector.sh <URL_RAW_ANDA>/protector.sh && \
+curl -L -o telegram_bot.sh <URL_RAW_ANDA>/telegram_bot.sh && \
+chmod +x protector.sh telegram_bot.sh
+```
+
+Setelah selesai, Anda dapat memulai konfigurasi dengan menjalankan:
+
+```bash
+./protector.sh
+```
+
+---
+
 Skrip ini memungkinkan Anda untuk melindungi skrip shell (`.sh`) dengan mengenkripsinya. Skrip yang dilindungi dapat dieksekusi secara normal tetapi kode sumbernya akan tersembunyi.
 
 Selain itu, alat ini terintegrasi dengan Telegram Bot untuk mengotomatiskan proses enkripsi.
@@ -11,14 +31,6 @@ Selain itu, alat ini terintegrasi dengan Telegram Bot untuk mengotomatiskan pros
 -   **Menu Interaktif**: Antarmuka menu yang mudah digunakan untuk mengenkripsi dan mendekripsi file.
 -   **Integrasi Bot Telegram**: Otomatiskan enkripsi dengan mengirim file ke bot Telegram pribadi Anda.
 -   **Pencadangan Otomatis**: Secara otomatis membuat cadangan file asli sebelum enkripsi.
-
-## Perintah Sekali Jalan (Instalasi Cepat)
-
-Perintah ini akan membuat semua skrip yang diperlukan dapat dieksekusi. Jalankan perintah ini sekali di terminal Anda:
-
-```bash
-chmod +x protector.sh telegram_bot.sh
-```
 
 ## Cara Menjalankan Bot Telegram
 
