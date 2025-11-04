@@ -186,15 +186,19 @@ echo -e "${G}Bot enkripsi interaktif Telegram dimulai... Tekan [CTRL+C] untuk be
 touch "$USER_STATE_FILE"
 
 while true; do
-    response=$(curl -s "$API_URL/getUpdates?offset=$((LAST_UPDATE_ID + 1))&timeout=30")
+    response_file=$(mktemp)
+    # Unduh pembaruan ke file sementara
+    curl -s -o "$response_file" "$API_URL/getUpdates?offset=$((LAST_UPDATE_ID + 1))&timeout=30"
 
-    if echo "$response" | grep -q '"ok":true'; then
-        update_ids=$(echo "$response" | grep -o '"update_id":[0-9]*' | cut -d':' -f2 | sort -un)
+    # Proses respons langsung dari file, jangan memuatnya ke dalam variabel
+    if grep -q '"ok":true' "$response_file"; then
+        update_ids=$(grep -o '"update_id":[0-9]*' "$response_file" | cut -d':' -f2 | sort -un)
         for update_id in $update_ids; do
             if (( update_id > LAST_UPDATE_ID )); then
                 LAST_UPDATE_ID=$update_id
 
-                message=$(echo "$response" | grep -A 20 "\"update_id\":$update_id")
+                # Ekstrak blok pesan untuk update_id ini dari file
+                message=$(grep -A 20 "\"update_id\":$update_id" "$response_file")
 
                 # Parsing JSON yang lebih kuat untuk ID
                 chat_id=$(echo "$message" | grep -o '"chat":{"id":[0-9]*' | sed 's/"chat":{"id"://')
@@ -222,5 +226,7 @@ while true; do
             fi
         done
     fi
+    # Hapus file sementara setelah digunakan
+    rm -f "$response_file"
     sleep 1
 done
