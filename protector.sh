@@ -31,16 +31,34 @@ check_deps() {
 create_backup() {
     local file_to_backup="$1"
 
+    # Buat direktori backup utama jika belum ada
     if [ ! -d "$BACKUP_DIR" ]; then
-        mkdir "$BACKUP_DIR"
-        echo -e "$info Membuat direktori backup: ${W}$BACKUP_DIR/${N}"
+        echo -e "$info Membuat direktori backup utama: ${W}$BACKUP_DIR/${N}"
+        mkdir -p "$BACKUP_DIR"
+        if [ $? -ne 0 ]; then
+            echo -e "$eror Gagal membuat direktori backup utama di ${W}$BACKUP_DIR${N}."
+            echo -e "$eror Periksa izin tulis Anda. Enkripsi dibatalkan."
+            exit 1
+        fi
     fi
 
+    # Buat subdirektori timestamp yang unik
     local timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
     local backup_path="$BACKUP_DIR/$timestamp"
     mkdir "$backup_path"
+    if [ $? -ne 0 ]; then
+        echo -e "$eror Gagal membuat direktori backup timestamp di ${W}$backup_path${N}."
+        echo -e "$eror Periksa izin tulis Anda. Enkripsi dibatalkan."
+        exit 1
+    fi
 
+    # Salin file asli ke direktori backup
     cp "$file_to_backup" "$backup_path/"
+    if [ $? -ne 0 ]; then
+        echo -e "$eror Gagal menyalin file asli ke ${W}$backup_path/${N}."
+        echo -e "$eror Enkripsi dibatalkan."
+        exit 1
+    fi
 
     echo -e "$sukses Backup file asli disimpan di: ${W}$backup_path/${N}"
 }
