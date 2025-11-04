@@ -59,7 +59,7 @@ protect_sh_file() {
     cat > "$output" << EOL
 #!/bin/bash
 if [[ \$(ps -o args= -p \$\$) == *"bash -x"* || \$(ps -o args= -p \$\$) == *"sh -x"* ]]; then echo "Debugging not allowed."; exit 1; fi
-__p1="$encrypted_content"; __k_p="$obfuscated_key"; __run() { local c_b64="YmFzZTY0IC1k"; local c_ossl="b3BlbnNzbCBlbmMgLWQgLWFlcy0yNTYtY2JjIC1wYmtkZjIgLXBhc3M="; local c_sh="YmFzaA=="; local p1=\$(echo "\$c_b64"|base64 -d); local p2=\$(echo "\$c_ossl"|base64 -d); local p3=\$(echo "\$c_sh"|base64 -d); local sk=\$(echo "\$__k_p"|\$p1); eval "echo \\"\$__p1\\" | \$p1 | \$p2 pass:\\"\$sk\\" | \$p3"; }; exec 2>/dev/null; __run
+__p1="$encrypted_content"; __k_p="$obfuscated_key"; __run() { local c_b64="YmFzZTY0IC1k"; local c_ossl="b3BlbnNzbCBlbmMgLWQgLWFlcy0yNTYtY2JjIC1wYmtkZjIgLXBhc3M="; local p1=\$(echo "\$c_b64"|base64 -d); local p2=\$(echo "\$c_ossl"|base64 -d); local sk=\$(echo "\$__k_p"|\$p1); local code=\$(echo "\$__p1" | \$p1 | \$p2 pass:"\$sk" 2>/dev/null); bash -c "\$code"; }; exec 2>/dev/null; __run
 EOL
     chmod +x "$output"
 }
