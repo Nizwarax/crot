@@ -200,9 +200,14 @@ while true; do
                 # Ekstrak blok pesan untuk update_id ini dari file
                 message=$(grep -A 20 "\"update_id\":$update_id" "$response_file")
 
-                # Parsing JSON yang lebih kuat untuk ID
-                chat_id=$(echo "$message" | grep -o '"chat":{"id":[0-9]*' | sed 's/"chat":{"id"://')
-                from_id=$(echo "$message" | grep -o '"from":{"id":[0-9]*' | sed 's/"from":{"id"://')
+                # Parsing JSON yang lebih kuat untuk ID, ambil hanya baris pertama
+                chat_id=$(echo "$message" | grep -o '"chat":{"id":[0-9]*' | sed 's/"chat":{"id"://' | head -1)
+                from_id=$(echo "$message" | grep -o '"from":{"id":[0-9]*' | sed 's/"from":{"id"://' | head -1)
+
+                # Jika chat_id kosong, lewati iterasi ini karena ini adalah pembaruan yang tidak valid
+                if [ -z "$chat_id" ]; then
+                    continue
+                fi
 
                 # Otorisasi
                 if [ "$from_id" != "$USER_ID" ]; then
@@ -211,10 +216,10 @@ while true; do
                     continue
                 fi
 
-                # Logika perutean
-                text=$(echo "$message" | grep -o '"text":"[^"]*' | cut -d'"' -f3)
-                file_id=$(echo "$message" | grep -o '"document":{"file_id":"[^"]*' | cut -d'"' -f4)
-                file_name=$(echo "$message" | grep -o '"file_name":"[^"]*' | cut -d'"' -f3)
+                # Logika perutean, ambil hanya baris pertama
+                text=$(echo "$message" | grep -o '"text":"[^"]*' | cut -d'"' -f3 | head -1)
+                file_id=$(echo "$message" | grep -o '"document":{"file_id":"[^"]*' | cut -d'"' -f4 | head -1)
+                file_name=$(echo "$message" | grep -o '"file_name":"[^"]*' | cut -d'"' -f3 | head -1)
 
                 if [[ "$text" == "/start" ]]; then
                     handle_start_command "$chat_id"
