@@ -132,7 +132,7 @@ handle_file() {
     local file_name="$3"
     local user_state=$(get_user_state "$chat_id")
 
-    if [[ "$user_state" == "awaiting_encryption_file" ]]; {
+    if [[ "$user_state" == "awaiting_encryption_file" ]]; then
         send_message "$chat_id" "File '$file_name' diterima, sedang diproses untuk enkripsi..."
         local downloaded_file=$(download_file "$file_id" "$file_name")
         if [ $? -ne 0 ] || [ ! -f "$downloaded_file" ]; then
@@ -151,7 +151,7 @@ handle_file() {
         set_user_state "$chat_id" "idle"
         handle_start_command "$chat_id"
 
-    } elif [[ "$user_state" == "awaiting_decryption_file" ]]; {
+    elif [[ "$user_state" == "awaiting_decryption_file" ]]; then
         send_message "$chat_id" "File '$file_name' diterima, sedang diproses untuk dekripsi..."
         local downloaded_file=$(download_file "$file_id" "$file_name")
         local decrypted_file_path="$SCRIPT_DIR/downloads/decrypted_$file_name"
@@ -173,10 +173,10 @@ handle_file() {
         set_user_state "$chat_id" "idle"
         handle_start_command "$chat_id"
 
-    } else {
+    else
         send_message "$chat_id" "Saya tidak yakin apa yang harus dilakukan dengan file ini. Silakan pilih aksi terlebih dahulu."
         handle_start_command "$chat_id"
-    } fi
+    fi
 }
 
 
