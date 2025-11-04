@@ -190,22 +190,23 @@ while true; do
     # Unduh pembaruan ke file sementara
     curl -s -o "$response_file" "$API_URL/getUpdates?offset=$((LAST_UPDATE_ID + 1))&timeout=30"
 
-    # Proses respons langsung dari file, jangan memuatnya ke dalam variabel
-    if grep -q '"ok":true' "$response_file"; then
-        update_ids=$(grep -o '"update_id":[0-9]*' "$response_file" | cut -d':' -f2 | sort -un)
-        for update_id in $update_ids; do
+    # Periksa apakah respons valid dan memiliki hasil sebelum melanjutkan
+    if jq -e '.ok == true and .result | length > 0' "$response_file" > /dev/null; then
+        # Proses setiap pembaruan dalam respons menggunakan jq
+        jq -c '.result[]' "$response_file" | while read -r update; do
+            update_id=$(echo "$update" | jq '.update_id')
+
+            # Pastikan kita hanya memproses pembaruan baru
             if (( update_id > LAST_UPDATE_ID )); then
                 LAST_UPDATE_ID=$update_id
 
-                # Ekstrak blok pesan untuk update_id ini dari file
-                message=$(grep -A 20 "\"update_id\":$update_id" "$response_file")
+                # Ekstrak detail pesan. Gunakan '?' untuk menangani message yang mungkin null (misalnya, callback_query)
+                # Gunakan // null untuk memberikan nilai default agar jq tidak error
+                chat_id=$(echo "$update" | jq '.message.chat.id // .edited_message.chat.id // .callback_query.message.chat.id // null')
+                from_id=$(echo "$update" | jq '.message.from.id // .edited_message.from.id // .callback_query.from.id // null')
 
-                # Parsing JSON yang lebih kuat untuk ID, ambil hanya baris pertama
-                chat_id=$(echo "$message" | grep -o '"chat":{"id":[0-9]*' | sed 's/"chat":{"id"://' | head -1)
-                from_id=$(echo "$message" | grep -o '"from":{"id":[0-9]*' | sed 's/"from":{"id"://' | head -1)
-
-                # Jika chat_id kosong, lewati iterasi ini karena ini adalah pembaruan yang tidak valid
-                if [ -z "$chat_id" ]; then
+                # Jika tidak ada chat_id, lewati
+                if [ "$chat_id" == "null" ]; then
                     continue
                 fi
 
@@ -216,21 +217,22 @@ while true; do
                     continue
                 fi
 
-                # Logika perutean, ambil hanya baris pertama
-                text=$(echo "$message" | grep -o '"text":"[^"]*' | cut -d'"' -f3 | head -1)
-                file_id=$(echo "$message" | grep -o '"document":{"file_id":"[^"]*' | cut -d'"' -f4 | head -1)
-                file_name=$(echo "$message" | grep -o '"file_name":"[^"]*' | cut -d'"' -f3 | head -1)
+                # Ekstrak jenis pesan. Gunakan -r untuk output mentah (menghilangkan tanda kutip)
+                text=$(echo "$update" | jq -r '.message.text // "null"')
+                file_id=$(echo "$update" | jq -r '.message.document.file_id // "null"')
+                file_name=$(echo "$update" | jq -r '.message.document.file_name // "null"')
 
                 if [[ "$text" == "/start" ]]; then
                     handle_start_command "$chat_id"
-                elif [[ -n "$text" ]]; then
+                elif [[ "$text" != "null" ]]; then
                     handle_button_press "$chat_id" "$text"
-                elif [[ -n "$file_id" ]]; then
+                elif [[ "$file_id" != "null" ]]; then
                     handle_file "$chat_id" "$file_id" "$file_name"
                 fi
             fi
         done
     fi
+
     # Hapus file sementara setelah digunakan
     rm -f "$response_file"
     sleep 1

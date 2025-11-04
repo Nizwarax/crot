@@ -19,7 +19,22 @@ info="${C}[${W}i${C}]${N}"
 
 echo -e "$info Memulai instalasi ENCSSL..."
 
-# --- LANGKAH 1: BUAT DIREKTORI INSTALASI ---
+# --- LANGKAH 1: PERIKSA DEPENDENSI ---
+echo -e "$info Memeriksa dependensi yang diperlukan..."
+if ! command -v jq &>/dev/null; then
+    echo -e "$eror 'jq' tidak ditemukan. Ini diperlukan untuk mem-parsing respons API Telegram."
+    echo -e "$info Silakan install 'jq' menggunakan manajer paket Anda."
+    echo -e "$info Contoh: ${C}sudo apt-get install jq${N} atau ${C}sudo yum install jq${N}"
+    exit 1
+fi
+if ! command -v curl &>/dev/null; then
+    echo -e "$eror 'curl' tidak ditemukan. Ini diperlukan untuk mengunduh skrip."
+    echo -e "$info Silakan install 'curl' menggunakan manajer paket Anda."
+    exit 1
+fi
+echo -e "$sukses Semua dependensi terpenuhi."
+
+# --- LANGKAH 2: BUAT DIREKTORI INSTALASI ---
 echo -e "$info Membuat direktori instalasi di: ${W}$INSTALL_DIR${N}"
 mkdir -p "$INSTALL_DIR"
 if [ $? -ne 0 ]; then
@@ -27,7 +42,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# --- LANGKAH 2: UNDUH & VERIFIKASI SKRIP ---
+# --- LANGKAH 3: UNDUH & VERIFIKASI SKRIP ---
 
 # Fungsi untuk mengunduh file dan memverifikasi itu bukan halaman kesalahan HTML
 download_and_verify() {
