@@ -58,8 +58,39 @@ protect_sh_file() {
     # Buat script loader
     cat > "$output" << EOL
 #!/bin/bash
-if [[ \$(ps -o args= -p \$\$) == *"bash -x"* || \$(ps -o args= -p \$\$) == *"sh -x"* ]]; then echo "Debugging not allowed."; exit 1; fi
-__p1="$encrypted_content"; __k_p="$obfuscated_key"; __run() { local c_b64="YmFzZTY0IC1k"; local c_ossl="b3BlbnNzbCBlbmMgLWQgLWFlcy0yNTYtY2JjIC1wYmtkZjIgLXBhc3M="; local c_sh="YmFzaA=="; local p1=\$(echo "\$c_b64"|base64 -d); local p2=\$(echo "\$c_ossl"|base64 -d); local p3=\$(echo "\$c_sh"|base64 -d); local sk=\$(echo "\$__k_p"|\$p1); eval "echo \\"\$__p1\\" | \$p1 | \$p2 pass:\\"\$sk\\" | \$p3"; }; exec 2>/dev/null; __run
+
+# --- LOADER ---
+# Anti-debug sederhana
+if [[ \$(ps -o args= -p \$\$) == *"bash -x"* || \$(ps -o args= -p \$\$) == *"sh -x"* ]]; then
+    echo "Debugging is not allowed."
+    exit 1
+fi
+
+# Fungsi untuk dekripsi dan eksekusi
+__run_protected() {
+    local encrypted_content='$encrypted_content'
+    local obfuscated_key='$obfuscated_key'
+
+    # Dekode kunci
+    local decoded_key=\$(echo "\$obfuscated_key" | base64 -d)
+    if [ -z "\$decoded_key" ]; then
+        echo "Error: Failed to decode the key."
+        return 1
+    fi
+
+    # Dekripsi konten
+    local decrypted_content=\$(echo "\$encrypted_content" | base64 -d | openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:"\$decoded_key" 2>/dev/null)
+    if [ -z "\$decrypted_content" ]; then
+        echo "Error: Decryption failed. The key is incorrect or the data is corrupt."
+        return 1
+    fi
+
+    # Eksekusi konten yang sudah didekripsi
+    eval "\$decrypted_content"
+}
+
+# Panggil fungsi utama
+__run_protected
 EOL
     chmod +x "$output"
 }
@@ -77,11 +108,42 @@ protect_binary_file() {
     # Buat script loader
     cat > "$output" << EOL
 #!/bin/bash
+
+# --- LOADER ---
 echo "File extractor initializing..."
 read -rp "Enter the name for the output file (e.g., archive.zip): " user_output
-if [ -z "\$user_output" ]; then echo "Error: Output file name cannot be empty."; exit 1; fi
-__p1="$encrypted_content"; __k_p="$obfuscated_key"; __extract() { local c_b64="YmFzZTY0IC1k"; local c_ossl="b3BlbnNzbCBlbmMgLWQgLWFlcy0yNTYtY2JjIC1wYmtkZjIgLXBhc3M="; local p1=\$(echo "\$c_b64"|base64 -d); local p2=\$(echo "\$c_ossl"|base64 -d); local sk=\$(echo "\$__k_p"|\$p1); echo "Extracting to '\$user_output'..."; echo "\$__p1" | \$p1 | \$p2 pass:"\$sk" > "\$user_output"; }; __extract
-if [ \$? -eq 0 ]; then echo "File extracted successfully: \$user_output"; else echo "Extraction failed. Invalid password or corrupted data."; fi
+
+if [ -z "\$user_output" ]; then
+    echo "Error: Output file name cannot be empty."
+    exit 1
+fi
+
+__extract_protected() {
+    local encrypted_content='$encrypted_content'
+    local obfuscated_key='$obfuscated_key'
+
+    # Dekode kunci
+    local decoded_key=\$(echo "\$obfuscated_key" | base64 -d)
+    if [ -z "\$decoded_key" ]; then
+        echo "Error: Failed to decode the key."
+        return 1
+    fi
+
+    # Dekripsi dan simpan konten
+    echo "Extracting to '\$user_output'..."
+    local decrypted_output=\$(echo "\$encrypted_content" | base64 -d | openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:"\$decoded_key" > "\$user_output" 2>/dev/null)
+
+    if [ \$? -eq 0 ] && [ -s "\$user_output" ]; then
+        echo "File extracted successfully: \$user_output"
+    else
+        echo "Error: Extraction failed. The key is incorrect or the data is corrupt."
+        # Hapus file output yang mungkin kosong atau rusak
+        rm -f "\$user_output"
+        return 1
+    fi
+}
+
+__extract_protected
 EOL
     chmod +x "$output"
 }
