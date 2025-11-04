@@ -199,6 +199,7 @@ while true; do
                 from_id=$(echo "$message" | grep -o '"from":{"id":[^,]*' | cut -d':' -f2)
 
                 # Otorisasi
+                echo -e "${Y}[DEBUG] Menerima ID: '$from_id' | Dikonfigurasi ID: '$USER_ID'${N}"
                 if [ "$from_id" != "$USER_ID" ]; then
                     echo -e "$eror Pengguna tidak diizinkan: $from_id"
                     send_message "$chat_id" "Anda tidak diizinkan menggunakan bot ini."
