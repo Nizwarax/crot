@@ -5,7 +5,11 @@
 #================================#
 
 # --- KONFIGURASI ---
-BACKUP_DIR="protector_backups"
+# Skrip akan dijalankan dari symlink, jadi kita perlu mencari tahu di mana file sebenarnya berada.
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+BACKUP_DIR="$SCRIPT_DIR/protector_backups"
+CONFIG_FILE="$SCRIPT_DIR/bot.conf"
+BOT_SCRIPT_PATH="$SCRIPT_DIR/telegram_bot.sh"
 
 # --- WARNA & SIMBOL ---
 N='\033[0m'; W='\033[1;37m'; R='\033[1;31m';
@@ -129,73 +133,84 @@ menu_mass_sh() {
     echo -e "\n$sukses Selesai! Total ${W}$count${N} file script berhasil dilindungi."
 }
 
+# CORE: Fungsi dekripsi
+decrypt_file() {
+    local infile="$1"
+    local outfile="$2"
+
+    local encrypted_content=$(grep "local encrypted_content=" "$infile" | head -1 | cut -d"'" -f2)
+    local obfuscated_key=$(grep "local obfuscated_key=" "$infile" | head -1 | cut -d"'" -f2)
+
+    if [ -z "$encrypted_content" ] || [ -z "$obfuscated_key" ]; then
+        return 1 # Bukan file yang valid
+    fi
+
+    local decoded_key=$(echo "$obfuscated_key" | base64 -d)
+    if [ -z "$decoded_key" ]; then
+        return 1 # Gagal mendekode kunci
+    fi
+
+    # Dekripsi konten
+    echo "$encrypted_content" | base64 -d | openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:"$decoded_key" > "$outfile" 2>/dev/null
+    if [ $? -eq 0 ] && [ -s "$outfile" ]; then
+        return 0 # Berhasil
+    else
+        rm -f "$outfile" # Bersihkan upaya yang gagal
+        return 1 # Gagal dekripsi
+    fi
+}
+
 # Menu 4: Dekripsi file
 menu_decrypt_file() {
     echo -e "\n${C}--- Dekripsi File yang Dilindungi ---${N}"
     read -rp "$(echo -e "${ask} Nama file yang akan didekripsi ${G}> ${W}")" infile
     if [ ! -f "$infile" ]; then echo -e "$eror File tidak ditemukan!"; return; fi
 
-    # Ekstrak konten dan kunci dari file
-    local encrypted_content=$(grep "local encrypted_content=" "$infile" | head -1 | cut -d"'" -f2)
-    local obfuscated_key=$(grep "local obfuscated_key=" "$infile" | head -1 | cut -d"'" -f2)
-
-    if [ -z "$encrypted_content" ] || [ -z "$obfuscated_key" ]; then
-        echo -e "$eror File ini sepertinya bukan file yang dilindungi dengan benar."
-        return 1
-    fi
-
-    # Dekode kunci
-    local decoded_key=$(echo "$obfuscated_key" | base64 -d)
-    if [ -z "$decoded_key" ]; then
-        echo -e "$eror Gagal mendekode kunci."
-        return 1
-    fi
-
-    # Tentukan nama file output
     local default_output="decrypted_$(basename "$infile")"
     read -rp "$(echo -e "${ask} Nama file output [${G}$default_output${W}] ${G}> ${W}")" outfile
     [[ -z "$outfile" ]] && outfile="$default_output"
 
-    # Dekripsi konten
     echo -e "$info Mendekripsi file ke: ${W}$outfile${N}"
-    echo "$encrypted_content" | base64 -d | openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:"$decoded_key" > "$outfile" 2>/dev/null
-
-    if [ $? -eq 0 ] && [ -s "$outfile" ]; then
+    if decrypt_file "$infile" "$outfile"; then
         echo -e "$sukses File berhasil didekripsi: ${W}$outfile${N}"
     else
         echo -e "$eror Gagal mendekripsi file. Kunci salah atau data rusak."
-        rm -f "$outfile" # Hapus file yang gagal
     fi
 }
 
 
-# Menu 5: Pengaturan Bot
-menu_bot_settings() {
-    echo -e "\n${C}--- Pengaturan Bot Telegram ---${N}"
-    read -rp "$(echo -e "${ask} Masukkan Token Bot Anda ${G}> ${W}")" bot_token
-    read -rp "$(echo -e "${ask} Masukkan User ID atau Group ID Anda ${G}> ${W}")" user_id
+# Menu 5: Konfigurasi & Jalankan Bot
+menu_bot_config_and_run() {
+    echo -e "\n${C}--- Konfigurasi & Jalankan Bot Telegram ---${N}"
 
-    # Simpan ke file konfigurasi
-    echo "BOT_TOKEN='$bot_token'" > bot.conf
-    echo "USER_ID='$user_id'" >> bot.conf
-
-    echo -e "$sukses Pengaturan bot disimpan di ${W}bot.conf${N}"
-}
-
-# Menu 6: Jalankan Bot
-menu_run_bot() {
-    if [ ! -f "bot.conf" ]; then
-        echo -e "$eror File konfigurasi 'bot.conf' tidak ditemukan."
-        echo -e "$info Silakan atur token dan ID Anda melalui menu Pengaturan Bot terlebih dahulu."
-        return 1
-    fi
-    if [ ! -f "telegram_bot.sh" ]; then
-        echo -e "$eror File bot 'telegram_bot.sh' tidak ditemukan."
-        return 1
+    # Periksa apakah konfigurasi sudah ada
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        echo -e "$info Konfigurasi bot saat ini ditemukan:"
+        echo -e "  - Token: ${W}...${BOT_TOKEN: -4}${N}"
+        echo -e "  - User ID: ${W}$USER_ID${N}"
+        read -rp "$(echo -e "${ask} Apakah Anda ingin mengubah pengaturan ini? (y/n) [${G}n${W}] ${G}> ${W}")" change_settings
     fi
 
-    echo -e "$info Menjalankan bot Telegram..."
-    ./telegram_bot.sh
+    # Jika tidak ada konfigurasi atau pengguna ingin mengubah
+    if [ ! -f "$CONFIG_FILE" ] || [[ "$change_settings" == "y" ]]; then
+        read -rp "$(echo -e "${ask} Masukkan Token Bot Anda ${G}> ${W}")" bot_token
+        read -rp "$(echo -e "${ask} Masukkan User ID atau Group ID Anda ${G}> ${W}")" user_id
+
+        echo "BOT_TOKEN='$bot_token'" > "$CONFIG_FILE"
+        echo "USER_ID='$user_id'" >> "$CONFIG_FILE"
+
+        echo -e "$sukses Pengaturan bot disimpan di ${W}$CONFIG_FILE${N}"
+    fi
+
+    # Jalankan bot
+    if [ ! -f "$BOT_SCRIPT_PATH" ]; then
+        echo -e "$eror File bot '$BOT_SCRIPT_PATH' tidak ditemukan. Mungkin instalasi tidak lengkap."
+        return 1
+    fi
+
+    echo -e "\n$info Menjalankan bot Telegram..."
+    "$BOT_SCRIPT_PATH"
 }
 
 
@@ -203,14 +218,21 @@ menu_run_bot() {
 check_deps
 
 # Mode non-interaktif untuk bot
-if [ -n "$1" ]; then
+if [ "$1" == "--decrypt" ]; then
+    if [ -f "$2" ]; then
+        # Dekripsi file. Output ke stdout untuk bot.
+        decrypt_file "$2" "/dev/stdout"
+        exit $?
+    else
+        exit 1 # File tidak ditemukan
+    fi
+elif [ -n "$1" ]; then
     if [ -f "$1" ]; then
-        # Hanya enkripsi, tanpa backup di mode ini (bot yang akan menangani)
+        # Enkripsi file seperti biasa (menimpa file).
         protect_sh_file "$1"
         exit 0
     else
-        echo "Error: File '$1' not found."
-        exit 1
+        exit 1 # File tidak ditemukan
     fi
 fi
 
@@ -223,8 +245,7 @@ while true; do
     echo -e " ${G}[${W}2${G}]${W} Lindungi SEMUA script .sh di folder ini${N}"
     echo -e " ${C}[${W}3${C}]${W} Dekripsi File yang Dilindungi${N}"
     echo -e "----------------------------------------------------"
-    echo -e " ${Y}[${W}4${Y}]${W} Pengaturan Bot Telegram${N}"
-    echo -e " ${Y}[${W}5${Y}]${W} Jalankan Bot Telegram${N}"
+    echo -e " ${Y}[${W}4${Y}]${W} Konfigurasi & Jalankan Bot Telegram${N}"
     echo -e "----------------------------------------------------"
     echo -e " ${R}[${W}0${R}]${W} Keluar${N}"
     echo "----------------------------------------------------"
@@ -235,8 +256,7 @@ while true; do
         1) menu_single_sh ;;
         2) menu_mass_sh ;;
         3) menu_decrypt_file ;;
-        4) menu_bot_settings ;;
-        5) menu_run_bot ;;
+        4) menu_bot_config_and_run ;;
         0) echo -e "\n${Y}Terima kasih!${N}"; exit 0 ;;
         *) echo -e "$eror Pilihan tidak valid!" ;;
     esac
