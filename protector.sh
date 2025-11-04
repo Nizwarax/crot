@@ -8,8 +8,6 @@
 # Skrip akan dijalankan dari symlink, jadi kita perlu mencari tahu di mana file sebenarnya berada.
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 BACKUP_DIR="$SCRIPT_DIR/protector_backups"
-CONFIG_FILE="$SCRIPT_DIR/bot.conf"
-BOT_SCRIPT_PATH="$SCRIPT_DIR/telegram_bot.sh"
 
 # --- WARNA & SIMBOL ---
 N='\033[0m'; W='\033[1;37m'; R='\033[1;31m';
