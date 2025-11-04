@@ -42,8 +42,8 @@ create_backup() {
         fi
     fi
 
-    # Buat subdirektori timestamp yang unik
-    local timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
+    # Buat subdirektori timestamp yang unik (tambahkan nanodetik untuk keunikan)
+    local timestamp=$(date +"%Y-%m-%d_%H-%M-%S-%N")
     local backup_path="$BACKUP_DIR/$timestamp"
     mkdir "$backup_path"
     if [ $? -ne 0 ]; then
