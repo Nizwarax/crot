@@ -27,8 +27,7 @@ check_deps() {
 
 # Membuat backup
 create_backup() {
-    local original_file="$1"
-    local protected_file="$2"
+    local file_to_backup="$1"
 
     if [ ! -d "$BACKUP_DIR" ]; then
         mkdir "$BACKUP_DIR"
@@ -39,16 +38,15 @@ create_backup() {
     local backup_path="$BACKUP_DIR/$timestamp"
     mkdir "$backup_path"
 
-    cp "$original_file" "$backup_path/"
-    cp "$protected_file" "$backup_path/"
+    cp "$file_to_backup" "$backup_path/"
 
-    echo -e "$sukses Backup file asli dan file terproteksi disimpan di: ${W}$backup_path/${N}"
+    echo -e "$sukses Backup file asli disimpan di: ${W}$backup_path/${N}"
 }
 
 # CORE: Fungsi enkripsi untuk file .sh
 protect_sh_file() {
     local infile="$1"
-    local output="$2"
+    local temp_output=$(mktemp)
 
     # Buat kunci acak & enkripsi konten
     local key=$(openssl rand -hex 32)
@@ -56,7 +54,7 @@ protect_sh_file() {
     local obfuscated_key=$(echo -n "$key" | base64 -w 0)
 
     # Buat script loader
-    cat > "$output" << EOL
+    cat > "$temp_output" << EOL
 #!/bin/bash
 
 # --- LOADER ---
@@ -92,60 +90,10 @@ __run_protected() {
 # Panggil fungsi utama
 __run_protected
 EOL
-    chmod +x "$output"
-}
 
-# CORE: Fungsi enkripsi untuk file ZIP/Biner
-protect_binary_file() {
-    local infile="$1"
-    local output="$2"
-
-    # Buat kunci acak & enkripsi konten
-    local key=$(openssl rand -hex 32)
-    local encrypted_content=$(openssl enc -aes-256-cbc -salt -pbkdf2 -pass pass:"$key" -in "$infile" | base64 -w 0)
-    local obfuscated_key=$(echo -n "$key" | base64 -w 0)
-
-    # Buat script loader
-    cat > "$output" << EOL
-#!/bin/bash
-
-# --- LOADER ---
-echo "File extractor initializing..."
-read -rp "Enter the name for the output file (e.g., archive.zip): " user_output
-
-if [ -z "\$user_output" ]; then
-    echo "Error: Output file name cannot be empty."
-    exit 1
-fi
-
-__extract_protected() {
-    local encrypted_content='$encrypted_content'
-    local obfuscated_key='$obfuscated_key'
-
-    # Dekode kunci
-    local decoded_key=\$(echo "\$obfuscated_key" | base64 -d)
-    if [ -z "\$decoded_key" ]; then
-        echo "Error: Failed to decode the key."
-        return 1
-    fi
-
-    # Dekripsi dan simpan konten
-    echo "Extracting to '\$user_output'..."
-    local decrypted_output=\$(echo "\$encrypted_content" | base64 -d | openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:"\$decoded_key" > "\$user_output" 2>/dev/null)
-
-    if [ \$? -eq 0 ] && [ -s "\$user_output" ]; then
-        echo "File extracted successfully: \$user_output"
-    else
-        echo "Error: Extraction failed. The key is incorrect or the data is corrupt."
-        # Hapus file output yang mungkin kosong atau rusak
-        rm -f "\$user_output"
-        return 1
-    fi
-}
-
-__extract_protected
-EOL
-    chmod +x "$output"
+    # Timpa file asli dengan versi yang dilindungi
+    mv "$temp_output" "$infile"
+    chmod +x "$infile"
 }
 
 
@@ -157,51 +105,115 @@ menu_single_sh() {
     read -rp "$(echo -e "${ask} Nama file script .sh ${G}> ${W}")" infile
     if [ ! -f "$infile" ]; then echo -e "$eror File tidak ditemukan!"; return; fi
 
-    local output="${infile%.sh}_protected.sh"
-    read -rp "$(echo -e "${ask} Nama file output [${G}$output${W}] ${G}> ${W}")" new_output
-    [[ -n "$new_output" ]] && output="$new_output"
-
     echo -e "$info Memproses file: ${W}$infile${N}"
-    protect_sh_file "$infile" "$output"
-    create_backup "$infile" "$output"
+    create_backup "$infile"
+    protect_sh_file "$infile"
+    echo -e "$sukses File ${W}$infile${N} berhasil dilindungi (file asli ditimpa)."
 }
 
 # Menu 2: Enkripsi massal .sh
 menu_mass_sh() {
-    echo -e "\n${C}--- Lindungi Semua Script .sh di Direktori Ini ---${N}"
+    echo -e "\n${C}--- Lindungi Semua Script .sh di Direktori Ini (File Asli Ditimpa) ---${N}"
     read -rp "$(echo -e "${ask} Apakah Anda yakin? (y/n) ${G}> ${W}")" confirm
     if [[ "$confirm" != "y" ]]; then echo -e "$eror Operasi dibatalkan."; return; fi
 
     local count=0
     for infile in *.sh; do
-        if [ -f "$infile" ] && [ "$infile" != "protector.sh" ]; then
-            local output="${infile%.sh}_protected.sh"
+        if [ -f "$infile" ] && [ "$infile" != "protector.sh" ] && [ "$infile" != "telegram_bot.sh" ]; then
             echo -e "$info Memproses file: ${W}$infile${N}"
-            protect_sh_file "$infile" "$output"
-            create_backup "$infile" "$output"
+            create_backup "$infile"
+            protect_sh_file "$infile"
             ((count++))
         fi
     done
     echo -e "\n$sukses Selesai! Total ${W}$count${N} file script berhasil dilindungi."
 }
 
-# Menu 3: Enkripsi file ZIP atau lainnya
-menu_zip_file() {
-    echo -e "\n${C}--- Lindungi File ZIP / Biner ---${N}"
-    read -rp "$(echo -e "${ask} Nama file (misal: data.zip) ${G}> ${W}")" infile
+# Menu 4: Dekripsi file
+menu_decrypt_file() {
+    echo -e "\n${C}--- Dekripsi File yang Dilindungi ---${N}"
+    read -rp "$(echo -e "${ask} Nama file yang akan didekripsi ${G}> ${W}")" infile
     if [ ! -f "$infile" ]; then echo -e "$eror File tidak ditemukan!"; return; fi
 
-    local output="extract_${infile%.*}"
-    read -rp "$(echo -e "${ask} Nama file extractor .sh [${G}$output${W}] ${G}> ${W}")" new_output
-    [[ -n "$new_output" ]] && output="$new_output"
+    # Ekstrak konten dan kunci dari file
+    local encrypted_content=$(grep "local encrypted_content=" "$infile" | head -1 | cut -d"'" -f2)
+    local obfuscated_key=$(grep "local obfuscated_key=" "$infile" | head -1 | cut -d"'" -f2)
 
-    echo -e "$info Memproses file: ${W}$infile${N}"
-    protect_binary_file "$infile" "$output"
-    create_backup "$infile" "$output"
+    if [ -z "$encrypted_content" ] || [ -z "$obfuscated_key" ]; then
+        echo -e "$eror File ini sepertinya bukan file yang dilindungi dengan benar."
+        return 1
+    fi
+
+    # Dekode kunci
+    local decoded_key=$(echo "$obfuscated_key" | base64 -d)
+    if [ -z "$decoded_key" ]; then
+        echo -e "$eror Gagal mendekode kunci."
+        return 1
+    fi
+
+    # Tentukan nama file output
+    local default_output="decrypted_$(basename "$infile")"
+    read -rp "$(echo -e "${ask} Nama file output [${G}$default_output${W}] ${G}> ${W}")" outfile
+    [[ -z "$outfile" ]] && outfile="$default_output"
+
+    # Dekripsi konten
+    echo -e "$info Mendekripsi file ke: ${W}$outfile${N}"
+    echo "$encrypted_content" | base64 -d | openssl enc -d -aes-256-cbc -pbkdf2 -pass pass:"$decoded_key" > "$outfile" 2>/dev/null
+
+    if [ $? -eq 0 ] && [ -s "$outfile" ]; then
+        echo -e "$sukses File berhasil didekripsi: ${W}$outfile${N}"
+    else
+        echo -e "$eror Gagal mendekripsi file. Kunci salah atau data rusak."
+        rm -f "$outfile" # Hapus file yang gagal
+    fi
 }
+
+
+# Menu 5: Pengaturan Bot
+menu_bot_settings() {
+    echo -e "\n${C}--- Pengaturan Bot Telegram ---${N}"
+    read -rp "$(echo -e "${ask} Masukkan Token Bot Anda ${G}> ${W}")" bot_token
+    read -rp "$(echo -e "${ask} Masukkan User ID atau Group ID Anda ${G}> ${W}")" user_id
+
+    # Simpan ke file konfigurasi
+    echo "BOT_TOKEN='$bot_token'" > bot.conf
+    echo "USER_ID='$user_id'" >> bot.conf
+
+    echo -e "$sukses Pengaturan bot disimpan di ${W}bot.conf${N}"
+}
+
+# Menu 6: Jalankan Bot
+menu_run_bot() {
+    if [ ! -f "bot.conf" ]; then
+        echo -e "$eror File konfigurasi 'bot.conf' tidak ditemukan."
+        echo -e "$info Silakan atur token dan ID Anda melalui menu Pengaturan Bot terlebih dahulu."
+        return 1
+    fi
+    if [ ! -f "telegram_bot.sh" ]; then
+        echo -e "$eror File bot 'telegram_bot.sh' tidak ditemukan."
+        return 1
+    fi
+
+    echo -e "$info Menjalankan bot Telegram..."
+    ./telegram_bot.sh
+}
+
 
 # --- SCRIPT UTAMA ---
 check_deps
+
+# Mode non-interaktif untuk bot
+if [ -n "$1" ]; then
+    if [ -f "$1" ]; then
+        # Hanya enkripsi, tanpa backup di mode ini (bot yang akan menangani)
+        protect_sh_file "$1"
+        exit 0
+    else
+        echo "Error: File '$1' not found."
+        exit 1
+    fi
+fi
+
 while true; do
     clear
     echo -e "${Y}--- Advanced Script & File Protector ---${N}"
@@ -209,7 +221,11 @@ while true; do
     echo -e "----------------------------------------------------"
     echo -e " ${G}[${W}1${G}]${W} Lindungi SATU script .sh${N}"
     echo -e " ${G}[${W}2${G}]${W} Lindungi SEMUA script .sh di folder ini${N}"
-    echo -e " ${G}[${W}3${G}]${W} Lindungi file ZIP / Biner / Lainnya${N}"
+    echo -e " ${C}[${W}3${C}]${W} Dekripsi File yang Dilindungi${N}"
+    echo -e "----------------------------------------------------"
+    echo -e " ${Y}[${W}4${Y}]${W} Pengaturan Bot Telegram${N}"
+    echo -e " ${Y}[${W}5${Y}]${W} Jalankan Bot Telegram${N}"
+    echo -e "----------------------------------------------------"
     echo -e " ${R}[${W}0${R}]${W} Keluar${N}"
     echo "----------------------------------------------------"
 
@@ -218,7 +234,9 @@ while true; do
     case "$choice" in
         1) menu_single_sh ;;
         2) menu_mass_sh ;;
-        3) menu_zip_file ;;
+        3) menu_decrypt_file ;;
+        4) menu_bot_settings ;;
+        5) menu_run_bot ;;
         0) echo -e "\n${Y}Terima kasih!${N}"; exit 0 ;;
         *) echo -e "$eror Pilihan tidak valid!" ;;
     esac
