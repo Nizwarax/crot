@@ -195,11 +195,12 @@ while true; do
                 LAST_UPDATE_ID=$update_id
 
                 message=$(echo "$response" | grep -A 20 "\"update_id\":$update_id")
-                chat_id=$(echo "$message" | grep -o '"chat":{"id":[^,]*' | cut -d':' -f2)
-                from_id=$(echo "$message" | grep -o '"from":{"id":[^,]*' | cut -d':' -f2)
+
+                # Parsing JSON yang lebih kuat untuk ID
+                chat_id=$(echo "$message" | grep -o '"chat":{"id":[0-9]*' | sed 's/"chat":{"id"://')
+                from_id=$(echo "$message" | grep -o '"from":{"id":[0-9]*' | sed 's/"from":{"id"://')
 
                 # Otorisasi
-                echo -e "${Y}[DEBUG] Menerima ID: '$from_id' | Dikonfigurasi ID: '$USER_ID'${N}"
                 if [ "$from_id" != "$USER_ID" ]; then
                     echo -e "$eror Pengguna tidak diizinkan: $from_id"
                     send_message "$chat_id" "Anda tidak diizinkan menggunakan bot ini."
