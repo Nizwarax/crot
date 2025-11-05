@@ -93,4 +93,3 @@ fi
 echo -e "\n${Y}Instalasi Selesai!${N}"
 echo -e "Anda sekarang dapat menjalankan menu dari mana saja dengan mengetik:"
 echo -e "  ${G}$CMD_NAME${N}"
-echo -e "Untuk mengonfigurasi bot Anda, jalankan '${G}$CMD_NAME${N}' dan pilih 'Pengaturan Bot Telegram'."
