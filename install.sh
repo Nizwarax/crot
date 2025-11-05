@@ -5,7 +5,7 @@
 #=====================#
 
 # --- KONFIGURASI ---
-REPO_URL="https://raw.githubusercontent.com/Nizwarax/crot/main"  # ← TANPA SPASI DI AKHIR!
+REPO_URL="https://raw.githubusercontent.com/Nizwarax/crot/main"
 INSTALL_DIR="$HOME/.encssl"
 CMD_NAME="encssl"
 CMD_PATH="/usr/local/bin/$CMD_NAME"
@@ -30,87 +30,69 @@ echo -e "$sukses Semua dependensi terpenuhi."
 
 # --- LANGKAH 2: BUAT DIREKTORI INSTALASI ---
 echo -e "$info Membuat direktori instalasi di: ${W}$INSTALL_DIR${N}"
-if ! mkdir -p "$INSTALL_DIR"; then
-    echo -e "$eror Gagal membuat direktori instalasi. Periksa izin $HOME Anda."
+mkdir -p "$INSTALL_DIR"
+if [ $? -ne 0 ]; then
+    echo -e "$eror Gagal membuat direktori. Keluar."
     exit 1
 fi
 
 # --- LANGKAH 3: UNDUH & VERIFIKASI SKRIP ---
 
+# Fungsi untuk mengunduh file dan memverifikasi itu bukan halaman kesalahan HTML
 download_and_verify() {
     local url="$1"
     local dest="$2"
     local filename=$(basename "$dest")
 
     echo -e "$info Mengunduh ${W}$filename${N}..."
-    if ! curl -fL -s -o "$dest" "$url"; then
+    # Gunakan -f untuk gagal pada kesalahan server, -L untuk mengikuti pengalihan
+    curl -fL -s -o "$dest" "$url"
+
+    if [ $? -ne 0 ]; then
         echo -e "$eror Gagal mengunduh ${W}$filename${N}."
-        echo -e "$eror Periksa koneksi internet atau URL: ${C}$url${N}"
+        echo -e "$eror Periksa koneksi internet Anda atau URL repositori: ${C}$url${N}"
         exit 1
     fi
 
-    if [ ! -s "$dest" ]; then
-        echo -e "$eror File ${W}$filename${N} kosong. Unduhan gagal."
-        rm -f "$dest"
-        exit 1
-    fi
-
-    if grep -q "<!DOCTYPE html>" "$dest" 2>/dev/null; then
-        echo -e "$eror File ${W}$filename${N} adalah halaman HTML (mungkin 404)."
-        echo -e "$eror Pastikan file 'protector.sh' ada di repositori GitHub Anda."
-        rm -f "$dest"
+    # Verifikasi file bukan halaman HTML (kesalahan umum dengan URL GitHub mentah)
+    if grep -q "<!DOCTYPE html>" "$dest"; then
+        echo -e "$eror File yang diunduh ${W}$filename${N} tampaknya adalah halaman kesalahan HTML."
+        echo -e "$eror Ini mungkin karena URL repositori salah atau GitHub membatasi permintaan."
+        rm -f "$dest" # Hapus file yang rusak
         exit 1
     fi
 }
 
-echo -e "$info Mengunduh skrip utama..."
+echo -e "$info Mengunduh skrip yang diperlukan..."
 download_and_verify "$REPO_URL/protector.sh" "$INSTALL_DIR/protector.sh"
 
 echo -e "$sukses Skrip berhasil diunduh dan diverifikasi."
 
 # --- LANGKAH 4: BUAT SKRIP DAPAT DIEKSEKUSI ---
-echo -e "$info Mengatur izin eksekusi..."
-if ! chmod +x "$INSTALL_DIR/protector.sh"; then
-    echo -e "$eror Gagal memberi izin eksekusi pada skrip."
-    exit 1
-fi
-echo -e "$sukses Izin eksekusi berhasil diatur."
+echo -e "$info Membuat skrip dapat dieksekusi..."
+chmod +x "$INSTALL_DIR/protector.sh"
+echo -e "$sukses Izin berhasil diatur."
 
-# --- LANGKAH 5: BUAT PERINTAH GLOBAL (SYMLINK) ---
-echo -e "$info Membuat perintah global '${W}$CMD_NAME${N}' di ${W}$CMD_PATH${N}..."
+# --- LANGKAH 5: BUAT PERINTAH GLOBAL ---
+echo -e "$info Membuat perintah global '${W}$CMD_NAME${N}'..."
+echo -e "Ini memerlukan hak akses superuser (sudo) untuk membuat symlink di ${W}$CMD_PATH${N}."
 
-# ✅ Pastikan file target benar-benar ada sebelum membuat symlink
-if [ ! -f "$INSTALL_DIR/protector.sh" ]; then
-    echo -e "$eror Fatal: File target tidak ditemukan setelah unduhan."
-    echo -e "$eror Ini seharusnya tidak terjadi — periksa log sebelumnya."
-    exit 1
-fi
-
-# Hapus symlink lama jika ada
-if [ -L "$CMD_PATH" ]; then
-    echo -e "$info Menghapus symlink lama..."
+# ✅ HAPUS APA PUN YANG SUDAH ADA DI LOKASI TARGET (file, symlink, dll)
+if [ -e "$CMD_PATH" ]; then
+    echo -e "$info Entri lama ditemukan. Menghapus: ${W}$CMD_PATH${N}..."
     sudo rm -f "$CMD_PATH"
-elif [ -e "$CMD_PATH" ]; then
-    echo -e "$eror File atau direktori lain sudah ada di ${W}$CMD_PATH${N}."
-    echo -e "$eror Harap hapus manual atau pindahkan dulu, lalu jalankan ulang installer."
-    exit 1
 fi
 
 # Buat symlink baru
-echo -e "$info Membuat symlink (memerlukan sudo)..."
-if sudo ln -sf "$INSTALL_DIR/protector.sh" "$CMD_PATH"; then
+sudo ln -s "$INSTALL_DIR/protector.sh" "$CMD_PATH"
+if [ $? -eq 0 ]; then
     echo -e "$sukses Perintah '${W}$CMD_NAME${N}' berhasil dibuat."
 else
-    echo -e "$eror Gagal membuat symlink di ${W}$CMD_PATH${N}."
-    echo -e "$eror Pastikan:"
-    echo -e "  - Anda memiliki akses sudo"
-    echo -e "  - Direktori /usr/local/bin ada dan dapat ditulis"
-    echo -e "  - Tidak ada konflik izin atau kebijakan keamanan (SELinux, dsb)"
+    echo -e "$eror Gagal membuat symlink. Coba jalankan skrip ini dengan 'sudo bash install.sh'."
     exit 1
 fi
 
 # --- SELESAI ---
-echo -e "\n${Y}✅ Instalasi ENCSSL Selesai!${N}"
-echo -e "Anda sekarang dapat menjalankan tool ini dari mana saja dengan perintah:"
+echo -e "\n${Y}Instalasi Selesai!${N}"
+echo -e "Anda sekarang dapat menjalankan menu dari mana saja dengan mengetik:"
 echo -e "  ${G}$CMD_NAME${N}"
-echo -e "\n${C}Tips:${N} Untuk memperbarui di masa depan, jalankan installer ini lagi."
